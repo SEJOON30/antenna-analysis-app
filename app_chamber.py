@@ -4,10 +4,10 @@ import numpy as np
 import plotly.graph_objects as go
 import re
 
-# 1. 스트림릿 페이지 설정 (가로로 넓게 쓰기)
+# 1. 스트림릿 페이지 설정
 st.set_page_config(layout="wide")
 
-# 2. 대표 타이틀 명칭
+# 2. 대표 타이틀
 st.title("📡 안테나 성능 분석 시스템")
 st.markdown("---")
 
@@ -15,17 +15,18 @@ st.markdown("---")
 # 🛠️ [사이드바 영역] 프로젝트 타겟 스펙 및 파일 업로드
 # ---------------------------------------------------------
 st.sidebar.subheader("🔌 [1] S-Parameter 스펙 설정")
-target_s11 = st.sidebar.number_input("목표 최대 S11 (dB)", min_value=-60.0, max_value=10.0, value=-10.0, step=1.0)
-target_vswr = st.sidebar.number_input("목표 최대 VSWR", min_value=1.0, max_value=20.0, value=2.0, step=0.1)
+target_s11 = st.sidebar.number_input("목표 최대 S11 (dB)", value=-10.0, step=1.0)
+target_vswr = st.sidebar.number_input("목표 최대 VSWR", value=2.0, step=0.1)
 
 st.sidebar.markdown("---")
 st.sidebar.subheader("📡 [2] 방사성능 스펙 설정")
-target_eff = st.sidebar.number_input("목표 최소 효율 (%)", min_value=1.0, max_value=100.0, value=40.0, step=1.0)
-target_avg_gain = st.sidebar.number_input("목표 최소 평균 이득 (dBi)", min_value=-20.0, max_value=5.0, value=-4.0, step=0.1)
+target_eff = st.sidebar.number_input("목표 최소 효율 (%)", value=40.0, step=1.0)
+target_avg_gain = st.sidebar.number_input("목표 최소 평균 이득 (dBi)", value=-4.0, step=0.1)
 
 st.sidebar.markdown("---")
 st.sidebar.header("📂 계측 데이터 파일 업로드")
-# 💡 모바일 브라우저 차단 버그 해결을 위해 type 제한 완전 제거 유지 (사이드바 복귀)
+st.sidebar.caption("💡 폰에서 파일이 회색으로 잠기는 현상을 방지하기 위해 확장자 제한을 해제했습니다. 자유롭게 터치하세요.")
+# 모바일 차단 버그 해결을 위해 type 제한 완전 제거
 s1p_file = st.sidebar.file_uploader("🔌 0. S-Parameter 데이터 (.s1p)")
 summary_file = st.sidebar.file_uploader("📊 1. 방사 효율 및 이득 요약 (.csv/xlsx)")
 raw_file = st.sidebar.file_uploader("📂 2. 각도별 Raw Data (.csv/xlsx)")
@@ -120,9 +121,8 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 scale_vswr = st.slider("VSWR 차트 Y축 범위 설정", 1.0, 25.0, (1.0, 11.0), step=1.0)
                 step_vswr = st.slider("VSWR 격자 주 단위 선택", 0.5, 5.0, 1.0, step=0.5)
 
-            # 💡 직관적인 통합 체크박스 스위치 배치
+            # 직관적인 통합 체크박스 스위치 배치
             show_markers_toggle = st.checkbox("🚩 마커 보기", value=False)
-
             st.markdown("---")
             
             # 마커 리스트 전광판용 텍스트 빌딩 및 반올림 연산
@@ -207,7 +207,7 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 st.plotly_chart(fig_vswr_plot, use_container_width=True)
                 
             with col_main_table:
-                # 명칭 수정 사양 전면 동기화 및 unsafe_allow_html 오타 방지
+                # 완벽하게 수정된 unsafe_allow_html 적용
                 st.markdown(f"**🔌 네트워크 분석기 S-Parameter (Marker Table)** <br><small>Spec Limit: S11 ≤ {target_s11}dB ｜ VSWR ≤ {target_vswr}</small>", unsafe_allow_html=True)
                 st.dataframe(df_board, use_container_width=True, hide_index=True, height=295)
                 
@@ -219,7 +219,7 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 display_cham_df.columns = ["주파수 대역", "방사 효율 (%)", "평균 이득 (Average dBi)"]
                 st.dataframe(display_cham_df, use_container_width=True, hide_index=True, height=350)
 
-            # --- 전체 마커 통계 기반 최종 성적서 동적 분석 리포트 매핑 ---
+            # --- 분석 리포트 매핑 ---
             st.markdown("---")
             st.subheader("🔍 임피던스 매칭-공간 방사 결합 디버깅 분석 리포트")
             
@@ -234,19 +234,19 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                     fail_radiation_bands.append(f"{f_mhz:.0f}MHz")
 
             if not fail_radiation_bands:
-                st.success("✅ **[안테나 무선 전 구간 분석 최적화 만족]**\n\n모든 마커 주파수 대역에서 S-Parameter 회로 반사 조건과 챔버 공간 방사 효율 규격을 완벽하게 통과했습니다. 추가 하드웨어 변경 없이 다음 검증 단계로 진입이 가능합니다.")
+                st.success("✅ **[안테나 무선 전 구간 분석 최적화 만족]**\n\n모든 마커 주파수 대역에서 S-Parameter 회로 반사 조건과 챔버 공간 방사 효율 규격을 완벽하게 통과했습니다.")
             else:
                 st.warning("📊 **[전체 주파수 매칭-방사 인과관계 추적 추이 분석]**")
                 if fail_s_param_bands:
-                    st.error(f"❌ **회로 매칭 불량 구간 발견:** 대역 [{', '.join(fail_s_param_bands)}] 은 S-Parameter 규격 한계치를 초과했습니다.\n\n해당 구간 성능 저하의 주원인은 기구 배치가 아니라 **회로 입력단 임피던스 불평형**이므로, 매칭 회로 소자 튜닝을 최우선 수정 하십시오.")
+                    st.error(f"❌ **회로 매칭 불량 구간 발견:** 대역 [{', '.join(fail_s_param_bands)}] 은 S-Parameter 규격 한계치를 초과했습니다.\n\n해당 구간 성능 저하의 주원인은 **회로 입력단 임피던스 불평형**이므로, 매칭 회로 튜닝을 선행 하십시오.")
                 
                 struct_interference_bands = [b for b in fail_radiation_bands if b not in fail_s_param_bands]
                 if struct_interference_bands:
-                    st.warning(f"🚨 **기구물 차폐 및 무선 전력 흡수 구간 발견:** 대역 [{', '.join(struct_interference_bands)}] 은 회로 반사 계수($S_{11}$)가 정상 범위임에도 최종 효율이 미달되었습니다.\n\n해당 구간은 방사체 소자와 **주변 금속 간의 기구적 이격 거리를 재조정**하십시오.")
+                    st.warning(f"🚨 **기구물 차폐 및 무선 전력 흡수 구간 발견:** 대역 [{', '.join(struct_interference_bands)}] 은 회로 매칭이 정상임에도 최종 효율이 미달되었습니다.\n\n해당 구간은 방사체 소자와 **주변 금속 간의 기구적 이격 거리를 재조정**하십시오.")
                            
-        except Exception as e: st.error(f"⚠️ S1p 연동 결합 컴파일 오류 발생: {e}")
+        except Exception as e: st.error(f"⚠️ S1p 연동 결합 오류 발생: {e}")
     else:
-        st.info("📱 임피던스 결합 진단 분석을 시작하려면 왼쪽 사이드바에 '0. S-Parameter 데이터 업로드' 파일과 '1. 방사 효율 및 이득 요약 업로드' 파일을 동시에 올려주세요.")
+        st.info("📱 임피던스 결합 진단 분석을 시작하려면 왼쪽 사이드바에 데이터를 업로드해 주세요.")
 
 
 # ---------------------------------------------------------
@@ -306,8 +306,8 @@ elif menu_selection == "Passive 성능 분석":
             st.subheader("🔍 Passive 성능 실시간 분석 리포트")
             fail_count = len(freqs) - pass_count
             min_eff_idx, max_eff_idx = np.argmin(effs), np.argmax(effs)
-            st.info(f"▶ **대역 판정 결과:** 전체 {len(freqs)}개 대역 중 **{pass_count}개 합격 / {fail_count}개 불합격** 상태입니다.\n\n▶ **성능 극점 추적:** 최저 효율 대역은 **{freqs[min_eff_idx]:.0f} MHz ({effs[min_eff_idx]:.2f} %)** 이며, 최고 효율 대역은 **{freqs[max_eff_idx]:.0f} MHz ({effs[max_eff_idx]:.2f} %)** 입니다.\n\n▶ **엔지니어 가이드:** 불합격 대역(FAIL)이 존재할 경우 첫번째 메뉴를 가동해 근본적 하드웨어 원인을 진단분석하세요.")
-        except Exception as e: st.error(f"⚠️ 요약 파일 해석 중 오차가 발생했습니다: {e}")
+            st.info(f"▶ **대역 판정 결과:** 전체 {len(freqs)}개 대역 중 **{pass_count}개 합격 / {fail_count}개 불합격** 상태입니다.\n\n▶ **성능 극점 추적:** 최저 효율 대역은 **{freqs[min_eff_idx]:.0f} MHz ({effs[min_eff_idx]:.2f} %)** 이며, 최고 효율 대역은 **{freqs[max_eff_idx]:.0f} MHz ({effs[max_eff_idx]:.2f} %)** 입니다.")
+        except Exception as e: st.error(f"⚠️ 요약 파일 해석 중 오류 발생: {e}")
     else: st.info("📱 '1. 방사 효율 및 이득 요약 업로드'를 진행해 주세요.")
 
 
@@ -356,9 +356,9 @@ elif menu_selection == "교차 편파 분석":
             st.subheader("🔍 편파 격리도(XPD) 실시간 분석 리포트")
             ex_txt = ", ".join(excellent_xpd_bands) if excellent_xpd_bands else "없음"
             bd_txt = ", ".join(bad_xpd_bands) if bad_xpd_bands else "없음"
-            st.warning(f"▶ **✅ 우수한 편파 순도 대역 (XPD ≥ 15dB):** [{ex_txt}]\n특정 편파로 에너지가 아주 이쁘게 집중되어 있어 무선 통신 품질이 좋습니다.\n\n▶ **❌ 편파 붕괴 및 통신 열화 대역 (XPD < 5dB):** [{bd_txt}]\nH와 V 성분이 거의 비슷하여 안테나가 고유의 편파성을 잃어버렸습니다. 정밀 형상 매칭 분석을 선행하세요.")
+            st.warning(f"▶ **✅ 우수한 편파 순도 대역 (XPD ≥ 15dB):** [{ex_txt}]\n특정 편파로 에너지가 집중되어 통신 품질이 좋습니다.\n\n▶ **❌ 편파 열화 대역 (XPD < 5dB):** [{bd_txt}]\nH와 V 성분이 혼재하여 편파성을 잃어버렸습니다.")
         except Exception as e: st.error(f"⚠️ 편파 분석 오류: {e}")
-    else: st.info("📱 왼쪽 사이드바에서 '1. 방사 효율 및 이득 요약 업로드'를 먼저 올려주세요.")
+    else: st.info("📱 '1. 방사 효율 및 이득 요약 업로드'를 진행해 주세요.")
 
 
 # ---------------------------------------------------------
@@ -417,8 +417,14 @@ elif menu_selection == "방사패턴 분석(성능)":
                 st.markdown("---")
                 st.markdown("### 🎯 2D 평면 컷(Cut) 방사 성능 디버깅")
                 col_xy, col_zx, col_yz = st.columns(3)
+                
+                # 💡 [핵심 버그 픽스] Theta 180도를 360도로 펼치는 미러링 데이터 생성 로직
+                t_arr = np.array(t_angles)
+                need_mirroring = max(t_arr) <= 180
+                t_plot_angles = np.concatenate([t_arr, t_arr[::-1] + 180]) if need_mirroring else t_arr
+
                 with col_xy:
-                    target_t_idx = (np.abs(np.array(t_angles) - 90.0)).argmin()
+                    target_t_idx = (np.abs(t_arr - 90.0)).argmin()
                     gains_xy = matrix[target_t_idx, :]
                     max_xy, pk_xy_idx, n_pts = np.max(gains_xy), np.argmax(gains_xy), len(gains_xy)
                     l_idx, r_idx = pk_xy_idx, pk_xy_idx
@@ -432,6 +438,7 @@ elif menu_selection == "방사패턴 분석(성능)":
                         r_idx = n_i
                     hpbw_xy = (p_angles[r_idx] - p_angles[l_idx]) % 360
                     if hpbw_xy == 0: hpbw_xy = 360.0
+                    
                     fig_xy = go.Figure()
                     fig_xy.add_trace(go.Scatterpolar(r=gains_xy, theta=p_angles, mode='lines', line=dict(color='#FF1493', width=2), name='XY-Cut', hovertemplate='<b>수평각 (Phi)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
                     fig_xy.update_layout(polar=dict(angularaxis=dict(direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
@@ -441,19 +448,22 @@ elif menu_selection == "방사패턴 분석(성능)":
                 with col_zx:
                     target_p_idx_zx = (np.abs(np.array(p_angles) - 0.0)).argmin()
                     gains_zx = matrix[:, target_p_idx_zx]
+                    zx_plot_gains = np.concatenate([gains_zx, gains_zx[::-1]]) if need_mirroring else gains_zx
+                    
                     fig_zx = go.Figure()
-                    fig_zx.add_trace(go.Scatterpolar(r=gains_zx, theta=t_angles, mode='markers' if len(t_angles)==1 else 'lines+markers', line=dict(color='#1f77b4', width=2), name='ZX-Cut', hovertemplate='<b>수직각 (Theta)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
-                    fig_v_layout = dict(polar=dict(angularaxis=dict(direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
-                    fig_zx.update_layout(fig_v_layout)
+                    fig_zx.add_trace(go.Scatterpolar(r=zx_plot_gains, theta=t_plot_angles, mode='lines' if len(t_plot_angles)>1 else 'markers', line=dict(color='#1f77b4', width=2), name='ZX-Cut', hovertemplate='<b>수직각 (Theta)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
+                    fig_zx.update_layout(polar=dict(angularaxis=dict(rotation=90, direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
                     st.plotly_chart(fig_zx, use_container_width=True)
                     st.caption(f"ℹ️ **ZX 기준 각도**: Phi={p_angles[target_p_idx_zx]}° ｜ **Peak**: {round(np.max(gains_zx), 2):.2f} dBi")
 
                 with col_yz:
                     target_p_idx_yz = (np.abs(np.array(p_angles) - 90.0)).argmin()
                     gains_yz = matrix[:, target_p_idx_yz]
+                    yz_plot_gains = np.concatenate([gains_yz, gains_yz[::-1]]) if need_mirroring else gains_yz
+                    
                     fig_yz = go.Figure()
-                    fig_yz.add_trace(go.Scatterpolar(r=gains_yz, theta=t_angles, mode='markers' if len(t_angles)==1 else 'lines+markers', line=dict(color='#2ca02c', width=2), name='YZ-Cut', hovertemplate='<b>수직각 (Theta)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
-                    fig_yz.update_layout(polar=dict(angularaxis=dict(direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
+                    fig_yz.add_trace(go.Scatterpolar(r=yz_plot_gains, theta=t_plot_angles, mode='lines' if len(t_plot_angles)>1 else 'markers', line=dict(color='#2ca02c', width=2), name='YZ-Cut', hovertemplate='<b>수직각 (Theta)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
+                    fig_yz.update_layout(polar=dict(angularaxis=dict(rotation=90, direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
                     st.plotly_chart(fig_yz, use_container_width=True)
                     st.caption(f"ℹ️ **YZ 기준 각도**: Phi={p_angles[target_p_idx_yz]}° ｜ **Peak**: {round(np.max(gains_yz), 2):.2f} dBi")
 
@@ -479,7 +489,7 @@ elif menu_selection == "방사패턴 분석(성능)":
 
 
 # ---------------------------------------------------------
-# 🔮 [메뉴 5] 방사패턴 분석(RAW)
+# 🔮 [메뉴 4] 방사패턴 분석(RAW)
 # ---------------------------------------------------------
 elif menu_selection == "방사패턴 분석(RAW)":
     if raw_file is not None:
@@ -568,10 +578,24 @@ elif menu_selection == "방사패턴 분석(RAW)":
                         
                     with col_plot2d:
                         st.markdown("**🎯 필터링 구간 기준 2D Polar 매핑 곡선**")
+                        # 💡 [핵심 버그 픽스] 단일 Cut 추출 시, Theta Cut인지 Phi Cut인지 판별하여 미러링 적용
                         fig_polar_raw = go.Figure()
-                        lbl_axis = "수평각 (Phi)" if min(t_angles) == max(t_angles) else "각도 성분"
-                        fig_polar_raw.add_trace(go.Scatterpolar(r=gains_raw_sweep, theta=sub_p, mode='lines+markers', line=dict(color='#FF1493', width=2.5), name='Theta 단면 단일 타겟 선', hovertemplate=f'<b>{lbl_axis}</b>: %{{theta}}°<br><b>이득 (Gain)</b>: %{{r:.2f}} dBi<extra></extra>'))
-                        fig_polar_raw.update_layout(polar=dict(angularaxis=dict(direction="clockwise", period=360), radialaxis=dict(range=[scale_range_raw[0], scale_range_raw[1]], ticksuffix=" dBi")), height=400)
+                        is_theta_sweep = min(sub_p) == max(sub_p)
+                        
+                        if is_theta_sweep:
+                            lbl_axis = "수직각 (Theta)"
+                            sub_t_arr = np.array(sub_t)
+                            plot_theta = np.concatenate([sub_t_arr, sub_t_arr[::-1] + 180]) if max(sub_t_arr) <= 180 else sub_t_arr
+                            plot_r = np.concatenate([gains_raw_sweep, gains_raw_sweep[::-1]]) if max(sub_t_arr) <= 180 else gains_raw_sweep
+                            plot_rotation = 90
+                        else:
+                            lbl_axis = "수평각 (Phi)"
+                            plot_theta = sub_p
+                            plot_r = gains_raw_sweep
+                            plot_rotation = 0
+                            
+                        fig_polar_raw.add_trace(go.Scatterpolar(r=plot_r, theta=plot_theta, mode='lines+markers', line=dict(color='#FF1493', width=2.5), name='단면 타겟 선', hovertemplate=f'<b>{lbl_axis}</b>: %{{theta}}°<br><b>이득 (Gain)</b>: %{{r:.2f}} dBi<extra></extra>'))
+                        fig_polar_raw.update_layout(polar=dict(angularaxis=dict(rotation=plot_rotation, direction="clockwise", period=360), radialaxis=dict(range=[scale_range_raw[0], scale_range_raw[1]], ticksuffix=" dBi")), height=400)
                         st.plotly_chart(fig_polar_raw, use_container_width=True)
                         st.caption(f"ℹ️ **구간 패턴 참고 정보** ｜ **Peak Gain**: {round(raw_max_gain, 2):.2f} dBi ｜ **빔 중심 각도**: {sub_p[raw_peak_idx]:.1f}° ｜ **3dB 빔폭 (HPBW)**: {raw_hpbw_val:.1f}°")
                         
@@ -596,11 +620,11 @@ elif menu_selection == "방사패턴 분석(RAW)":
                         elif null_density_raw <= 5.0: st.success(f"✅ **[D] 음영 사각지대 안전 수준 (Null 밀도: {null_density_raw:.1f}%):** 사각지대 안전 수준 충족.")
                         else: st.info(f"📊 **[D] 일반 공간 음영 밀도 (Null 밀도: {null_density_raw:.1f}%):** 사각지대가 안정적으로 케어됩니다.")
         except Exception as e: st.error(f"⚠️ 연산 중 에러 발생: {e}")
-    else: st.info("📱 공식 챔버 패턴 Raw 파일을 왼쪽 업로드 창에 올려주세요.")
+    else: st.info("📱 공식 챔버 패턴 Raw 파일을 업로드해 주세요.")
 
 
 # ---------------------------------------------------------
-# 📋 [메뉴 6] 엔지니어 종합 진단 리포트
+# 📋 [메뉴 5] 엔지니어 종합 진단 리포트
 # ---------------------------------------------------------
 elif menu_selection == "📋 엔지니어 종합 진단 리포트":
     if summary_file is not None and raw_file is not None:
@@ -706,8 +730,8 @@ elif menu_selection == "📋 엔지니어 종합 진단 리포트":
    ▶ [C] 전후방 방사 분포비 (F/B Ratio): 전 대역 평균 에너지 격리 지표 = [{round(m_fb, 2):.2f} dB]
    ▶ [D] 3D 구면 사각지대 밀도 (Null Density): 전 사방 안테나 총 음영 밀도 = [{round(m_null, 1):.1f} %]
 
-==================================================================================
+====================================================================================================
 """
             st.code(report_template_text, language="text")
         except Exception as e: st.error(f"⚠️ 리포트 생성 실패: {e}")
-    else: st.info("📱 종합 리포트 조회를 위해 1번 요약 파일하고 2번 패턴 Raw 파일을 모두 업로드해 주세요.")
+    else: st.info("📱 종합 리포트 조회를 위해 요약 파일과 Raw 파일을 모두 업로드해 주세요.")
