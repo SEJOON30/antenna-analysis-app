@@ -1,12 +1,15 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 import re
 
-# 스트림릿 페이지 설정 (가로로 넓게 쓰기)
+# 1. 스트림릿 페이지 설정 (가로로 넓게 쓰기)
 st.set_page_config(layout="wide")
+
+# 2. 대표 타이틀 명칭 변경 적용
+st.title("📡 안테나 성능 분석 시스템")
+st.markdown("---")
 
 # ---------------------------------------------------------
 # 🛠️ [사이드바 영역] 프로젝트 타겟 스펙 설정
@@ -19,12 +22,6 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("📡 [2] 방사성능 스펙 설정")
 target_eff = st.sidebar.number_input("목표 최소 효율 (%)", min_value=1.0, max_value=100.0, value=40.0, step=1.0)
 target_avg_gain = st.sidebar.number_input("목표 최소 평균 이득 (dBi)", min_value=-20.0, max_value=5.0, value=-4.0, step=0.1)
-
-st.sidebar.markdown("---")
-st.sidebar.header("📂 챔버 및 네트워크 분석기 파일 업로드")
-s1p_file = st.sidebar.file_uploader("🔌 0. S-Parameter 데이터 업로드 (.s1p)", type=["s1p", "S1P"])
-summary_file = st.sidebar.file_uploader("📊 1. 방사 효율 및 이득 요약 업로드 (.csv/.xlsx)", type=["csv", "xlsx", "CSV", "XLSX"])
-raw_file = st.sidebar.file_uploader("📂 2. 각도별 Raw Data 업로드 (raw.csv/.xlsx)", type=["csv", "xlsx", "CSV", "XLSX"])
 
 st.sidebar.markdown("---")
 st.sidebar.header("🗺️ 대시보드 분석 메뉴")
@@ -40,8 +37,21 @@ menu_selection = st.sidebar.radio(
     ]
 )
 
-# 메인 헤더 타이틀
-st.title("📡 MTG 챔버 실전 올인원 분석 시스템")
+# ---------------------------------------------------------
+# 📂 [메인 상단 배치] 챔버 및 네트워크 분석기 파일 업로드 (모바일 호환성 극대화)
+# ---------------------------------------------------------
+st.subheader("📂 계측 데이터 파일 업로드 (모바일 지원 모드)")
+col_file1, col_file2, col_file3 = st.columns(3)
+
+with col_file1:
+    # 💡 모바일 브라우저 차단 버그 해결을 위해 type 제한 완전 제거
+    s1p_file = st.file_uploader("🔌 0. S-Parameter 데이터 업로드 (.s1p 파일 선택)")
+with col_file2:
+    summary_file = st.file_uploader("📊 1. 방사 효율 및 이득 요약 업로드 (요약 Excel/CSV)")
+with col_file3:
+    raw_file = st.file_uploader("📂 2. 각도별 Raw Data 업로드 (raw 패턴 파일)")
+
+st.markdown("---")
 st.write(f"현재 뷰어 모드: **{menu_selection}**")
 st.markdown("---")
 
@@ -51,7 +61,7 @@ st.markdown("---")
 # ---------------------------------------------------------
 if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
     st.subheader("🔍 임피던스 매칭(S11/VSWR)과 방사 성능(효율)의 상호 인과관계 정밀 추적")
-    st.write("안테나의 성능 저하 원인이 에너지를 받지 못하는 '회로 매칭 불량'인지, 에너지는 받았으나 뿜지 못하는 '기구물 차폐'인지 1초 만에 감별합니다.")
+    st.write("안테나의 성능 저하 원인이 에너지를 받지 못하는 '회로 매칭 불량'인지, 에너지는 받았으나 뿜지 못하는 '기구물 차폐'인지 감별합니다.")
     
     if s1p_file is not None and summary_file is not None:
         try:
@@ -118,12 +128,14 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 scale_vswr = st.slider("VSWR 차트 Y축 범위 설정", 1.0, 25.0, (1.0, 11.0), step=1.0)
                 step_vswr = st.slider("VSWR 격자 주 단위 선택", 0.5, 5.0, 1.0, step=0.5)
 
+            # 💡 모바일 환경 연동 강화를 위한 직관적인 통합 체크박스 스위치 배치
+            show_markers_toggle = st.checkbox("🚩 마커 보기", value=False)
+
             st.markdown("---")
             
-            # 💡 [회원님 요청사양 실무형 대개조 연산 핵심]
-            # 보내주신 캡처 이미지처럼 장비 화면 좌측상단에 띄울 텍스트 표 데이터 가공
+            # 마커 리스트 전광판용 텍스트 빌딩 및 반올림 연산
             all_s11_markers_y, all_vswr_markers_y = [], []
-            marker_symbols_labels = [] # 선 위에 올릴 심플 기호 (m1, m2...)
+            marker_symbols_labels = [] 
             
             s11_embed_text = "<b>[Tr1] S11 Marker List</b><br>"
             vswr_embed_text = "<b>[Tr2] VSWR Marker List</b><br>"
@@ -140,7 +152,6 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 m_label = f"m{m_idx+1}"
                 marker_symbols_labels.append(m_label)
                 
-                # 💡 계측기 오버레이 텍스트 빌딩 (보내주신 사진 포맷과 100% 일치 매핑)
                 s11_embed_text += f"{m_label}  {cf:.1f} MHz  {r_s11:.2f} dB<br>"
                 vswr_embed_text += f"{m_label}  {cf:.1f} MHz  {r_vswr:.2f}<br>"
                 
@@ -152,33 +163,30 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
 
             col_main_graph, col_main_table = st.columns([5, 4])
             with col_main_graph:
-                st.markdown(f"**📉 S-Parameter 데이터 곡선 (💡 우측 범례 단추로 '마커 기호'와 '좌측상단 스크린 표' 동시 On/Off 연동)**")
+                st.markdown(f"**📉 S-Parameter 데이터 곡선**")
                 
                 # 1) S11 그래프 그리기
                 fig_s11_plot = go.Figure()
                 fig_s11_plot.add_trace(go.Scatter(x=df_s1p["freq"], y=df_s1p["s11"], mode='lines', name='S11 궤적', line=dict(color='#d62728', width=2.5)))
                 
-                # 💡 [요청 사양 반영] 선 위에는 글씨 겹침 없이 깔끔하게 '기호 점(▼m1)'만 표기되도록 결합
-                fig_s11_plot.add_trace(go.Scatter(
-                    x=df_cham["freq"], y=all_s11_markers_y, mode='markers+text', name='🚩 그래프 안 마커/전광판 일괄 보기',
-                    marker=dict(color='black', size=10, symbol='triangle-down'), # 역삼각형 계측기 마커 변환
-                    text=marker_symbols_labels, textposition='top center', textfont=dict(color='black', size=11, family='Arial'),
-                    visible='legendonly'
-                ))
-                
-                # 💡 [요청 사양 반영] 이미지와 똑같이 왼쪽 상단 여백에 마커 수치 리스트를 텍스트 박스로 고정 임베딩
-                # 단, 범례 단추와 동기화하기 위해 범례 토글 신호 조건 매핑
-                fig_s11_plot.add_annotation(
-                    xref="paper", yref="paper", x=0.02, y=0.95, showarrow=False, align="left",
-                    text=s11_embed_text, font=dict(size=12, color="blue", family="Courier New"), # 계측기 특유의 폰트 느낌 재현
-                    bgcolor="rgba(255, 255, 255, 0.85)", bordercolor="rgba(0,0,0,0.2)", borderwidth=1, borderpad=6
-                )
+                # 체크박스 스위치 온오프 상태에 따라 정밀 동기화 노출
+                if show_markers_toggle:
+                    fig_s11_plot.add_trace(go.Scatter(
+                        x=df_cham["freq"], y=all_s11_markers_y, mode='markers+text', name='마커 포인트',
+                        marker=dict(color='black', size=11, symbol='triangle-down'), 
+                        text=marker_symbols_labels, textposition='top center', textfont=dict(color='black', size=11, family='Arial')
+                    ))
+                    fig_s11_plot.add_annotation(
+                        xref="paper", yref="paper", x=0.02, y=0.95, showarrow=False, align="left",
+                        text=s11_embed_text, font=dict(size=12, color="blue", family="Courier New"),
+                        bgcolor="rgba(255, 255, 255, 0.9)", bordercolor="rgba(0,0,0,0.15)", borderwidth=1, borderpad=6
+                    )
                 
                 fig_s11_plot.add_hline(y=target_s11, line_width=2, line_dash="dash", line_color="Purple", annotation_text=f"Target {target_s11}dB", annotation_position="top left")
                 fig_s11_plot.update_layout(
                     xaxis_title="Frequency (MHz)", yaxis_title="S11 Return Loss (dB)", height=350, margin=dict(l=10, r=10, t=10, b=10),
                     yaxis=dict(range=[scale_s11[0], scale_s11[1]], tickmode='linear', tick0=scale_s11[0], dtick=step_s11),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    showlegend=False
                 )
                 st.plotly_chart(fig_s11_plot, use_container_width=True)
                 
@@ -186,34 +194,32 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 fig_vswr_plot = go.Figure()
                 fig_vswr_plot.add_trace(go.Scatter(x=df_s1p["freq"], y=df_s1p["vswr"], mode='lines', name='VSWR 궤적', line=dict(color='#bcbd22', width=2.5)))
                 
-                # VSWR용 독립 기호 마커 레이어
-                fig_vswr_plot.add_trace(go.Scatter(
-                    x=df_cham["freq"], y=all_vswr_markers_y, mode='markers+text', name='🚩 그래프 안 마커/전광판 일괄 보기 ',
-                    marker=dict(color='black', size=10, symbol='triangle-down'), 
-                    text=marker_symbols_labels, textposition='top center', textfont=dict(color='black', size=11, family='Arial'),
-                    visible='legendonly'
-                ))
-                
-                # 💡 VSWR 왼쪽 상단 여백 전광판 임베딩
-                fig_vswr_plot.add_annotation(
-                    xref="paper", yref="paper", x=0.02, y=0.95, showarrow=False, align="left",
-                    text=vswr_embed_text, font=dict(size=12, color="blue", family="Courier New"),
-                    bgcolor="rgba(255, 255, 255, 0.85)", bordercolor="rgba(0,0,0,0.2)", borderwidth=1, borderpad=6
-                )
+                if show_markers_toggle:
+                    fig_vswr_plot.add_trace(go.Scatter(
+                        x=df_cham["freq"], y=all_vswr_markers_y, mode='markers+text', name='마커 포인트',
+                        marker=dict(color='black', size=11, symbol='triangle-down'), 
+                        text=marker_symbols_labels, textposition='top center', textfont=dict(color='black', size=11, family='Arial')
+                    ))
+                    fig_vswr_plot.add_annotation(
+                        xref="paper", yref="paper", x=0.02, y=0.95, showarrow=False, align="left",
+                        text=vswr_embed_text, font=dict(size=12, color="blue", family="Courier New"),
+                        bgcolor="rgba(255, 255, 255, 0.9)", bordercolor="rgba(0,0,0,0.15)", borderwidth=1, borderpad=6
+                    )
                 
                 fig_vswr_plot.add_hline(y=target_vswr, line_width=2, line_dash="dash", line_color="Red", annotation_text=f"Target {target_vswr}", annotation_position="top left")
                 fig_vswr_plot.update_layout(
                     xaxis_title="Frequency (MHz)", yaxis_title="VSWR", height=350, margin=dict(l=10, r=10, t=10, b=10),
                     yaxis=dict(range=[scale_vswr[0], scale_vswr[1]], tickmode='linear', tick0=scale_vswr[0], dtick=step_vswr),
-                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+                    showlegend=False
                 )
                 st.plotly_chart(fig_vswr_plot, use_container_width=True)
                 
             with col_main_table:
-                st.markdown("**🔌 네트워크 분석기 전용 마커 종합 전광판 (Marker Table)**")
+                # 명칭 수정 사양 전면 동기화 적용
+                st.markdown(f"**🔌 네트워크 분석기 S-Parameter (Marker Table)** <br><small>Spec Limit: S11 ≤ {target_s11}dB ｜ VSWR ≤ {target_vswr}</small>", unsafe_html=True)
                 st.dataframe(df_board, use_container_width=True, hide_index=True, height=295)
                 
-                st.markdown(f"**📊 챔버 방사성능 지표 성적 표 (목표 효율: {target_eff}%)**")
+                st.markdown(f"**📡 챔버 방사성능 (Eff, Avg)** <br><small>Spec Limit: Eff ≥ {target_eff}% ｜ Avg Gain ≥ {target_avg_gain}dBi</small>", unsafe_html=True)
                 display_cham_df = df_cham.copy()
                 display_cham_df["freq"] = display_cham_df["freq"].map(lambda x: f"{x:.0f} MHz")
                 display_cham_df["eff"] = display_cham_df["eff"].map(lambda x: f"{round(x, 2):.2f} %")
@@ -240,7 +246,7 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
             else:
                 st.warning("📊 **[전체 주파수 매칭-방사 인과관계 추적 추이 분석]**")
                 if fail_s_param_bands:
-                    st.error(f"❌ **회로 매칭 불량 구간 발견:** 대역 [{', '.join(fail_s_param_bands)}] 은 유저 설정 S-Parameter 규격 한계치를 초과했습니다.\n\n해당 구간 성능 저하의 주원인은 기구 배치가 아니라 **회로 입력단 임피던스 불평형**이므로, 매칭 회로 소자 튜닝을 최우선 수정 하십시오.")
+                    st.error(f"❌ **회로 매칭 불량 구간 발견:** 대역 [{', '.join(fail_s_param_bands)}] 은 S-Parameter 규격 한계치를 초과했습니다.\n\n해당 구간 성능 저하의 주원인은 기구 배치가 아니라 **회로 입력단 임피던스 불평형**이므로, 매칭 회로 소자 튜닝을 최우선 수정 하십시오.")
                 
                 struct_interference_bands = [b for b in fail_radiation_bands if b not in fail_s_param_bands]
                 if struct_interference_bands:
@@ -248,7 +254,7 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                            
         except Exception as e: st.error(f"⚠️ S1p 연동 결합 컴파일 오류 발생: {e}")
     else:
-        st.info("📱 임피던스 결합 진단 분석을 시작하려면 왼쪽 사이드바에 '0. S-Parameter 데이터 업로드' 파일과 '1. 방사 효율 및 이득 요약 업로드' 파일을 동시에 올려주세요.")
+        st.info("📱 임피던스 결합 진단 분석을 시작하려면 메인페이지 상단에 '0. S-Parameter 데이터 업로드' 파일과 '1. 방사 효율 및 이득 요약 업로드' 파일을 동시에 올려주세요.")
 
 
 # ---------------------------------------------------------
@@ -445,7 +451,8 @@ elif menu_selection == "방사패턴 분석(성능)":
                     gains_zx = matrix[:, target_p_idx_zx]
                     fig_zx = go.Figure()
                     fig_zx.add_trace(go.Scatterpolar(r=gains_zx, theta=t_angles, mode='markers' if len(t_angles)==1 else 'lines+markers', line=dict(color='#1f77b4', width=2), name='ZX-Cut', hovertemplate='<b>수직각 (Theta)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
-                    fig_zx.update_layout(polar=dict(angularaxis=dict(direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
+                    fig_v_layout = dict(polar=dict(angularaxis=dict(direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
+                    fig_zx.update_layout(fig_v_layout)
                     st.plotly_chart(fig_zx, use_container_width=True)
                     st.caption(f"ℹ️ **ZX 기준 각도**: Phi={p_angles[target_p_idx_zx]}° ｜ **Peak**: {round(np.max(gains_zx), 2):.2f} dBi")
 
@@ -469,9 +476,9 @@ elif menu_selection == "방사패턴 분석(성능)":
                 total_cells = matrix.size
                 null_density = (np.sum(matrix <= -15.0) / total_cells) * 100.0
 
-                col_i1, col_i2 = st.columns(2)
-                with col_i1: st.success(f"▶ **[A] 형상:** {pattern_type_str}\n\n▶ **[B] 빔폭:** {hpbw_guide_str}\n\n▶ **[C] 전후방비:** {fb_guide_str}")
-                with col_i2:
+                col_main_graph, col_main_table = st.columns(2)
+                with col_main_graph: st.success(f"▶ **[A] 형상:** {pattern_type_str}\n\n▶ **[B] 빔폭:** {hpbw_guide_str}\n\n▶ **[C] 전후방비:** {fb_guide_str}")
+                with col_main_table:
                     if null_density >= 20.0: st.error(f"🚨 **[D] 음영 위험 포착 (Null 밀도: {null_density:.1f}%):** 기구물 간섭 분석을 하세요.")
                     else: st.info(f"📊 **[D] 음영 안정적 구조 (Null 밀도: {null_density:.1f}%)**")
             else: st.error("⚠️ 데이터 파싱 오류")
@@ -480,7 +487,7 @@ elif menu_selection == "방사패턴 분석(성능)":
 
 
 # ---------------------------------------------------------
-# 🔮 [메뉴 5] 방사패턴 분석(RAW)
+# 🔮 [메뉴 4] 방사패턴 분석(RAW)
 # ---------------------------------------------------------
 elif menu_selection == "방사패턴 분석(RAW)":
     if raw_file is not None:
@@ -707,7 +714,7 @@ elif menu_selection == "📋 엔지니어 종합 진단 리포트":
    ▶ [C] 전후방 방사 분포비 (F/B Ratio): 전 대역 평균 에너지 격리 지표 = [{round(m_fb, 2):.2f} dB]
    ▶ [D] 3D 구면 사각지대 밀도 (Null Density): 전 사방 안테나 총 음영 밀도 = [{round(m_null, 1):.1f} %]
 
-==================================================================================
+====================================================================================================
 """
             st.code(report_template_text, language="text")
         except Exception as e: st.error(f"⚠️ 리포트 생성 실패: {e}")
