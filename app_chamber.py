@@ -7,12 +7,12 @@ import re
 # 1. 스트림릿 페이지 설정 (가로로 넓게 쓰기)
 st.set_page_config(layout="wide")
 
-# 2. 대표 타이틀 명칭 변경 적용
+# 2. 대표 타이틀 명칭
 st.title("📡 안테나 성능 분석 시스템")
 st.markdown("---")
 
 # ---------------------------------------------------------
-# 🛠️ [사이드바 영역] 프로젝트 타겟 스펙 설정
+# 🛠️ [사이드바 영역] 프로젝트 타겟 스펙 및 파일 업로드
 # ---------------------------------------------------------
 st.sidebar.subheader("🔌 [1] S-Parameter 스펙 설정")
 target_s11 = st.sidebar.number_input("목표 최대 S11 (dB)", min_value=-60.0, max_value=10.0, value=-10.0, step=1.0)
@@ -22,6 +22,13 @@ st.sidebar.markdown("---")
 st.sidebar.subheader("📡 [2] 방사성능 스펙 설정")
 target_eff = st.sidebar.number_input("목표 최소 효율 (%)", min_value=1.0, max_value=100.0, value=40.0, step=1.0)
 target_avg_gain = st.sidebar.number_input("목표 최소 평균 이득 (dBi)", min_value=-20.0, max_value=5.0, value=-4.0, step=0.1)
+
+st.sidebar.markdown("---")
+st.sidebar.header("📂 계측 데이터 파일 업로드")
+# 💡 모바일 브라우저 차단 버그 해결을 위해 type 제한 완전 제거 유지 (사이드바 복귀)
+s1p_file = st.sidebar.file_uploader("🔌 0. S-Parameter 데이터 (.s1p)")
+summary_file = st.sidebar.file_uploader("📊 1. 방사 효율 및 이득 요약 (.csv/xlsx)")
+raw_file = st.sidebar.file_uploader("📂 2. 각도별 Raw Data (.csv/xlsx)")
 
 st.sidebar.markdown("---")
 st.sidebar.header("🗺️ 대시보드 분석 메뉴")
@@ -37,21 +44,6 @@ menu_selection = st.sidebar.radio(
     ]
 )
 
-# ---------------------------------------------------------
-# 📂 [메인 상단 배치] 챔버 및 네트워크 분석기 파일 업로드 (모바일 호환성 극대화)
-# ---------------------------------------------------------
-st.subheader("📂 계측 데이터 파일 업로드 (모바일 지원 모드)")
-col_file1, col_file2, col_file3 = st.columns(3)
-
-with col_file1:
-    # 💡 모바일 브라우저 차단 버그 해결을 위해 type 제한 완전 제거
-    s1p_file = st.file_uploader("🔌 0. S-Parameter 데이터 업로드 (.s1p 파일 선택)")
-with col_file2:
-    summary_file = st.file_uploader("📊 1. 방사 효율 및 이득 요약 업로드 (요약 Excel/CSV)")
-with col_file3:
-    raw_file = st.file_uploader("📂 2. 각도별 Raw Data 업로드 (raw 패턴 파일)")
-
-st.markdown("---")
 st.write(f"현재 뷰어 모드: **{menu_selection}**")
 st.markdown("---")
 
@@ -128,7 +120,7 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 scale_vswr = st.slider("VSWR 차트 Y축 범위 설정", 1.0, 25.0, (1.0, 11.0), step=1.0)
                 step_vswr = st.slider("VSWR 격자 주 단위 선택", 0.5, 5.0, 1.0, step=0.5)
 
-            # 💡 모바일 환경 연동 강화를 위한 직관적인 통합 체크박스 스위치 배치
+            # 💡 직관적인 통합 체크박스 스위치 배치
             show_markers_toggle = st.checkbox("🚩 마커 보기", value=False)
 
             st.markdown("---")
@@ -163,7 +155,7 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
 
             col_main_graph, col_main_table = st.columns([5, 4])
             with col_main_graph:
-                st.markdown(f"**📉 S-Parameter 데이터 곡선**")
+                st.markdown(f"**📉 S-Parameter 데이터 곡선 (💡 좌측 상단 체크박스로 마커 동시 On/Off 연동)**")
                 
                 # 1) S11 그래프 그리기
                 fig_s11_plot = go.Figure()
@@ -215,11 +207,11 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 st.plotly_chart(fig_vswr_plot, use_container_width=True)
                 
             with col_main_table:
-                # 명칭 수정 사양 전면 동기화 적용
-                st.markdown(f"**🔌 네트워크 분석기 S-Parameter (Marker Table)** <br><small>Spec Limit: S11 ≤ {target_s11}dB ｜ VSWR ≤ {target_vswr}</small>", unsafe_html=True)
+                # 명칭 수정 사양 전면 동기화 및 unsafe_allow_html 오타 방지
+                st.markdown(f"**🔌 네트워크 분석기 S-Parameter (Marker Table)** <br><small>Spec Limit: S11 ≤ {target_s11}dB ｜ VSWR ≤ {target_vswr}</small>", unsafe_allow_html=True)
                 st.dataframe(df_board, use_container_width=True, hide_index=True, height=295)
                 
-                st.markdown(f"**📡 챔버 방사성능 (Eff, Avg)** <br><small>Spec Limit: Eff ≥ {target_eff}% ｜ Avg Gain ≥ {target_avg_gain}dBi</small>", unsafe_html=True)
+                st.markdown(f"**📡 챔버 방사성능 (Eff, Avg)** <br><small>Spec Limit: Eff ≥ {target_eff}% ｜ Avg Gain ≥ {target_avg_gain}dBi</small>", unsafe_allow_html=True)
                 display_cham_df = df_cham.copy()
                 display_cham_df["freq"] = display_cham_df["freq"].map(lambda x: f"{x:.0f} MHz")
                 display_cham_df["eff"] = display_cham_df["eff"].map(lambda x: f"{round(x, 2):.2f} %")
@@ -254,7 +246,7 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                            
         except Exception as e: st.error(f"⚠️ S1p 연동 결합 컴파일 오류 발생: {e}")
     else:
-        st.info("📱 임피던스 결합 진단 분석을 시작하려면 메인페이지 상단에 '0. S-Parameter 데이터 업로드' 파일과 '1. 방사 효율 및 이득 요약 업로드' 파일을 동시에 올려주세요.")
+        st.info("📱 임피던스 결합 진단 분석을 시작하려면 왼쪽 사이드바에 '0. S-Parameter 데이터 업로드' 파일과 '1. 방사 효율 및 이득 요약 업로드' 파일을 동시에 올려주세요.")
 
 
 # ---------------------------------------------------------
@@ -487,7 +479,7 @@ elif menu_selection == "방사패턴 분석(성능)":
 
 
 # ---------------------------------------------------------
-# 🔮 [메뉴 4] 방사패턴 분석(RAW)
+# 🔮 [메뉴 5] 방사패턴 분석(RAW)
 # ---------------------------------------------------------
 elif menu_selection == "방사패턴 분석(RAW)":
     if raw_file is not None:
@@ -714,7 +706,7 @@ elif menu_selection == "📋 엔지니어 종합 진단 리포트":
    ▶ [C] 전후방 방사 분포비 (F/B Ratio): 전 대역 평균 에너지 격리 지표 = [{round(m_fb, 2):.2f} dB]
    ▶ [D] 3D 구면 사각지대 밀도 (Null Density): 전 사방 안테나 총 음영 밀도 = [{round(m_null, 1):.1f} %]
 
-====================================================================================================
+==================================================================================
 """
             st.code(report_template_text, language="text")
         except Exception as e: st.error(f"⚠️ 리포트 생성 실패: {e}")
