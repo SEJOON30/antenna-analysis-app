@@ -207,7 +207,6 @@ if menu_selection == "🔍 임피던스 및 방사 인과관계 진단":
                 st.plotly_chart(fig_vswr_plot, use_container_width=True)
                 
             with col_main_table:
-                # 완벽하게 수정된 unsafe_allow_html 적용
                 st.markdown(f"**🔌 네트워크 분석기 S-Parameter (Marker Table)** <br><small>Spec Limit: S11 ≤ {target_s11}dB ｜ VSWR ≤ {target_vswr}</small>", unsafe_allow_html=True)
                 st.dataframe(df_board, use_container_width=True, hide_index=True, height=295)
                 
@@ -358,7 +357,7 @@ elif menu_selection == "교차 편파 분석":
             bd_txt = ", ".join(bad_xpd_bands) if bad_xpd_bands else "없음"
             st.warning(f"▶ **✅ 우수한 편파 순도 대역 (XPD ≥ 15dB):** [{ex_txt}]\n특정 편파로 에너지가 집중되어 통신 품질이 좋습니다.\n\n▶ **❌ 편파 열화 대역 (XPD < 5dB):** [{bd_txt}]\nH와 V 성분이 혼재하여 편파성을 잃어버렸습니다.")
         except Exception as e: st.error(f"⚠️ 편파 분석 오류: {e}")
-    else: st.info("📱 '1. 방사 효율 및 이득 요약 업로드'를 진행해 주세요.")
+    else: st.info("📱 왼쪽 사이드바에서 '1. 방사 효율 및 이득 요약 업로드'를 먼저 올려주세요.")
 
 
 # ---------------------------------------------------------
@@ -415,13 +414,17 @@ elif menu_selection == "방사패턴 분석(성능)":
                 st.plotly_chart(fig_3d_perf, use_container_width=True)
                 
                 st.markdown("---")
-                st.markdown("### 🎯 2D 평면 컷(Cut) 방사 성능 디버깅")
+                st.markdown("### 🎯 2D 평면 컷(Cut) 방사 성능 디버깅 (장비 뷰어 완벽 동기화)")
                 col_xy, col_zx, col_yz = st.columns(3)
                 
-                # 💡 [핵심 버그 픽스] Theta 180도를 360도로 펼치는 미러링 데이터 생성 로직
-                t_arr = np.array(t_angles)
-                need_mirroring = max(t_arr) <= 180
-                t_plot_angles = np.concatenate([t_arr, t_arr[::-1] + 180]) if need_mirroring else t_arr
+                t_arr, p_arr = np.array(t_angles), np.array(p_angles)
+                
+                # 💡 [핵심 보정] Theta 180도를 360도로 펼치기 위한 보정 배열
+                # t_arr이 [0, 15, ..., 180]이면, 360 - t_arr[::-1][1:] 은 [195, ..., 345, 360]이 됩니다.
+                if max(t_arr) <= 180:
+                    theta_full_360 = np.concatenate([t_arr, 360 - t_arr[::-1][1:]])
+                else:
+                    theta_full_360 = t_arr
 
                 with col_xy:
                     target_t_idx = (np.abs(t_arr - 90.0)).argmin()
@@ -440,40 +443,51 @@ elif menu_selection == "방사패턴 분석(성능)":
                     if hpbw_xy == 0: hpbw_xy = 360.0
                     
                     fig_xy = go.Figure()
-                    fig_xy.add_trace(go.Scatterpolar(r=gains_xy, theta=p_angles, mode='lines', line=dict(color='#FF1493', width=2), name='XY-Cut', hovertemplate='<b>수평각 (Phi)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
-                    fig_xy.update_layout(polar=dict(angularaxis=dict(direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
+                    fig_xy.add_trace(go.Scatterpolar(r=gains_xy, theta=p_angles, mode='lines', line=dict(color='#FF1493', width=2), name='XY-Cut'))
+                    fig_xy.update_layout(polar=dict(angularaxis=dict(direction="counterclockwise", rotation=0, period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20), title=dict(text="<b>H-Cut (Theta=90)</b>", x=0.5))
                     st.plotly_chart(fig_xy, use_container_width=True)
-                    st.caption(f"ℹ️ **XY 기준 각도**: Theta={t_angles[target_t_idx]}° ｜ **Peak**: {round(max_xy, 2):.2f} dBi ｜ **3dB 빔폭(HPBW)**: {hpbw_xy:.1f}°")
+                    st.caption(f"ℹ️ **Peak**: {round(max_xy, 2):.2f} dBi ｜ **3dB 빔폭(HPBW)**: {hpbw_xy:.1f}°")
 
                 with col_zx:
-                    target_p_idx_zx = (np.abs(np.array(p_angles) - 0.0)).argmin()
-                    gains_zx = matrix[:, target_p_idx_zx]
-                    zx_plot_gains = np.concatenate([gains_zx, gains_zx[::-1]]) if need_mirroring else gains_zx
+                    idx_0 = (np.abs(p_arr - 0.0)).argmin()
+                    idx_180 = (np.abs(p_arr - 180.0)).argmin()
                     
+                    if max(t_arr) <= 180:
+                        # 반대편 Phi 각도의 데이터를 가져와서 결합
+                        gains_zx_full = np.concatenate([matrix[:, idx_0], matrix[::-1, idx_180][1:]])
+                    else:
+                        gains_zx_full = matrix[:, idx_0]
+                        
                     fig_zx = go.Figure()
-                    fig_zx.add_trace(go.Scatterpolar(r=zx_plot_gains, theta=t_plot_angles, mode='lines' if len(t_plot_angles)>1 else 'markers', line=dict(color='#1f77b4', width=2), name='ZX-Cut', hovertemplate='<b>수직각 (Theta)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
-                    fig_zx.update_layout(polar=dict(angularaxis=dict(rotation=90, direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
+                    fig_zx.add_trace(go.Scatterpolar(r=gains_zx_full, theta=theta_full_360, mode='lines', line=dict(color='#1f77b4', width=2), name='ZX-Cut'))
+                    fig_zx.update_layout(polar=dict(angularaxis=dict(direction="clockwise", rotation=90, period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20), title=dict(text="<b>E1-Cut (Phi=0)</b>", x=0.5))
                     st.plotly_chart(fig_zx, use_container_width=True)
-                    st.caption(f"ℹ️ **ZX 기준 각도**: Phi={p_angles[target_p_idx_zx]}° ｜ **Peak**: {round(np.max(gains_zx), 2):.2f} dBi")
+                    st.caption(f"ℹ️ **Peak**: {round(np.max(gains_zx_full), 2):.2f} dBi")
 
                 with col_yz:
-                    target_p_idx_yz = (np.abs(np.array(p_angles) - 90.0)).argmin()
-                    gains_yz = matrix[:, target_p_idx_yz]
-                    yz_plot_gains = np.concatenate([gains_yz, gains_yz[::-1]]) if need_mirroring else gains_yz
+                    idx_90 = (np.abs(p_arr - 90.0)).argmin()
+                    # 90도의 반대편은 270도
+                    idx_270 = (np.abs(p_arr - 270.0)).argmin()
                     
+                    if max(t_arr) <= 180:
+                        # 반대편 Phi 각도의 데이터를 가져와서 결합
+                        gains_yz_full = np.concatenate([matrix[:, idx_90], matrix[::-1, idx_270][1:]])
+                    else:
+                        gains_yz_full = matrix[:, idx_90]
+                        
                     fig_yz = go.Figure()
-                    fig_yz.add_trace(go.Scatterpolar(r=yz_plot_gains, theta=t_plot_angles, mode='lines' if len(t_plot_angles)>1 else 'markers', line=dict(color='#2ca02c', width=2), name='YZ-Cut', hovertemplate='<b>수직각 (Theta)</b>: %{theta}°<br><b>이득 (Gain)</b>: %{r:.2f} dBi<extra></extra>'))
-                    fig_yz.update_layout(polar=dict(angularaxis=dict(rotation=90, direction="clockwise", period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20))
+                    fig_yz.add_trace(go.Scatterpolar(r=gains_yz_full, theta=theta_full_360, mode='lines', line=dict(color='#2ca02c', width=2), name='YZ-Cut'))
+                    fig_yz.update_layout(polar=dict(angularaxis=dict(direction="clockwise", rotation=90, period=360), radialaxis=dict(range=[scale_range[0], scale_range[1]], ticksuffix=" dBi")), height=320, margin=dict(l=20, r=20, t=20, b=20), title=dict(text="<b>E2-Cut (Phi=90)</b>", x=0.5))
                     st.plotly_chart(fig_yz, use_container_width=True)
-                    st.caption(f"ℹ️ **YZ 기준 각도**: Phi={p_angles[target_p_idx_yz]}° ｜ **Peak**: {round(np.max(gains_yz), 2):.2f} dBi")
+                    st.caption(f"ℹ️ **Peak**: {round(np.max(gains_yz_full), 2):.2f} dBi")
 
                 st.markdown("---")
                 st.subheader("🔍 방사패턴 형상 및 공간 사각지대 실시간 분석 리포트")
                 xy_ripple = np.max(gains_xy) - np.min(gains_xy)
                 pattern_type_str = "✅ 우수한 전방향성 안테나" if xy_ripple <= 5.0 else ("🎯 지향성 안테나 특성 감지" if xy_ripple >= 15.0 else "📊 일반 준무지향성 방사 구조 패턴")
                 hpbw_guide_str = "⚠️ 빔 집중도 저하" if hpbw_xy >= 90.0 else ("⚠️ 통신 사각지대 위험" if hpbw_xy <= 30.0 else "✅ 적정 무선 커버리지 조건 만족")
-                idx_0, idx_180 = (np.abs(np.array(p_angles) - 0.0)).argmin(), (np.abs(np.array(p_angles) - 180.0)).argmin()
-                fb_ratio = gains_xy[idx_0] - gains_xy[idx_180]
+                idx_0, idx_180_for_fb = (np.abs(np.array(p_angles) - 0.0)).argmin(), (np.abs(np.array(p_angles) - 180.0)).argmin()
+                fb_ratio = gains_xy[idx_0] - gains_xy[idx_180_for_fb]
                 fb_guide_str = "❌ 후방 누설" if fb_ratio < 3.0 else "✅ 전방 집중 우수"
                 total_cells = matrix.size
                 null_density = (np.sum(matrix <= -15.0) / total_cells) * 100.0
@@ -578,15 +592,25 @@ elif menu_selection == "방사패턴 분석(RAW)":
                         
                     with col_plot2d:
                         st.markdown("**🎯 필터링 구간 기준 2D Polar 매핑 곡선**")
-                        # 💡 [핵심 버그 픽스] 단일 Cut 추출 시, Theta Cut인지 Phi Cut인지 판별하여 미러링 적용
                         fig_polar_raw = go.Figure()
                         is_theta_sweep = min(sub_p) == max(sub_p)
                         
                         if is_theta_sweep:
                             lbl_axis = "수직각 (Theta)"
                             sub_t_arr = np.array(sub_t)
-                            plot_theta = np.concatenate([sub_t_arr, sub_t_arr[::-1] + 180]) if max(sub_t_arr) <= 180 else sub_t_arr
-                            plot_r = np.concatenate([gains_raw_sweep, gains_raw_sweep[::-1]]) if max(sub_t_arr) <= 180 else gains_raw_sweep
+                            
+                            # 반대편 Phi의 데이터를 가져와서 완전한 원형으로 구성
+                            opposite_phi = (sub_p[0] + 180) % 360
+                            idx_opp = (np.abs(np.array(p_angles) - opposite_phi)).argmin()
+                            
+                            if max(sub_t_arr) <= 180:
+                                plot_theta = np.concatenate([sub_t_arr, 360 - sub_t_arr[::-1][1:]])
+                                opp_gains = matrix[np.ix_(t_idxs, [idx_opp])][:, 0]
+                                plot_r = np.concatenate([gains_raw_sweep, opp_gains[::-1][1:]])
+                            else:
+                                plot_theta = sub_t_arr
+                                plot_r = gains_raw_sweep
+                                
                             plot_rotation = 90
                         else:
                             lbl_axis = "수평각 (Phi)"
@@ -624,7 +648,7 @@ elif menu_selection == "방사패턴 분석(RAW)":
 
 
 # ---------------------------------------------------------
-# 📋 [메뉴 5] 엔지니어 종합 진단 리포트
+# 📋 [메뉴 6] 엔지니어 종합 진단 리포트
 # ---------------------------------------------------------
 elif menu_selection == "📋 엔지니어 종합 진단 리포트":
     if summary_file is not None and raw_file is not None:
