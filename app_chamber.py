@@ -74,19 +74,18 @@ def generate_dummy_chamber_data(freq_target, is_previous=False):
     return df_summ, df_3d, df_2d_xy, df_2d_xz, df_2d_yz
 
 # ==========================================
-# 3. 메인 어플리케이션 (상태 유지 기능 탑재)
+# 3. 메인 어플리케이션
 # ==========================================
 def main():
     st.title("📡 안테나 성능 분석 시스템")
     
-    # 💡 모바일 튕김 원천 차단: 메뉴 이동이 아닌 '탭(Tab)'으로 전체 구조를 변경했습니다!
-    # 탭을 쓰면 화면을 넘겨도 파일이 날아가지 않습니다.
+    # 탭(Tab) 구조 유지 (주임님이 만족하신 구조)
     tab_home, tab_viewer, tab_debug, tab_report = st.tabs([
         "🏠 1. 설정 및 업로드", "📊 2. 데이터 뷰어", "🔍 3. 심층 분석", "📄 4. 리포트"
     ])
 
     # ------------------------------------------------
-    # 탭 1: 설정 및 파일 업로드 (가장 직관적인 배치)
+    # 탭 1: 설정, 업로드 및 튜닝 기록
     # ------------------------------------------------
     with tab_home:
         st.markdown("### 🎯 Target Spec 설정")
@@ -100,27 +99,29 @@ def main():
         t_gain = c5.number_input("Target Gain (dBi)", value=2.0, step=0.5)
 
         st.markdown("---")
-        st.markdown("### 📂 파일 업로드 (이곳에 파일을 올리고 옆 탭으로 이동하세요!)")
-        st.info("💡 **모바일 팁**: 파일이 '다운로드' 폴더나 카카오톡 다운로드 폴더에 있는지 확인하세요.")
+        # [복원됨] 튜닝 기록 텍스트 구역
+        st.markdown("### 📝 Tuning History (버전 관리)")
+        st.text_area("이번 버전(V1.0) 튜닝 시 변경된 물리적 치수나 매칭 소자값을 기록하세요.", 
+                     value="[예시]\n- 방사체 길이 1.5mm 연장\n- 매칭 회로: C소자 1.2pF 적용", height=100)
+
+        st.markdown("---")
+        st.markdown("### 📂 파일 업로드")
         
         col_curr, col_prev = st.columns(2)
         
         with col_curr:
             st.success("🟢 현재 튜닝 데이터 (V1.0)")
-            s1p_curr = st.file_uploader("1. S1P (매칭 데이터) [필수]", type=["s1p"], key="c_s1p")
-            if s1p_curr: st.write("✅ S1P 파일 인식 완료!")
-            
-            cham_summ_curr = st.file_uploader("2. 챔버 Summary 엑셀", type=["xlsx", "csv"], key="c_sum")
-            if cham_summ_curr: st.write("✅ 챔버 Summary 인식 완료!")
-            
-            cham_raw_curr = st.file_uploader("3. 챔버 3D/2D Raw 엑셀", type=["xlsx", "csv"], key="c_raw")
-            if cham_raw_curr: st.write("✅ 챔버 Raw 인식 완료!")
+            # [핵심 수정] type 제한을 모두 제거했습니다. 핸드폰에서 파일이 다 보입니다!
+            s1p_curr = st.file_uploader("1. S1P (매칭 데이터) [필수]", key="c_s1p")
+            cham_summ_curr = st.file_uploader("2. 챔버 Summary 엑셀", key="c_sum")
+            cham_raw_curr = st.file_uploader("3. 챔버 3D/2D Raw 엑셀", key="c_raw")
             
         with col_prev:
             st.warning("🔵 이전 데이터 (비교 시에만 업로드)")
-            s1p_prev = st.file_uploader("1. 이전 S1P 데이터", type=["s1p"], key="p_s1p")
-            cham_summ_prev = st.file_uploader("2. 이전 챔버 Summary", type=["xlsx", "csv"], key="p_sum")
-            cham_raw_prev = st.file_uploader("3. 이전 챔버 Raw Data", type=["xlsx", "csv"], key="p_raw")
+            # [핵심 수정] type 제한 제거
+            s1p_prev = st.file_uploader("1. 이전 S1P 데이터", key="p_s1p")
+            cham_summ_prev = st.file_uploader("2. 이전 챔버 Summary", key="p_sum")
+            cham_raw_prev = st.file_uploader("3. 이전 챔버 Raw 엑셀", key="p_raw")
 
     # ------------------------------------------------
     # 탭 2: Data Viewer (현재 데이터 확인)
