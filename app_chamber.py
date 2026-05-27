@@ -23,6 +23,9 @@ def parse_s1p(file):
         lines = [l for l in content.splitlines() if not l.strip().startswith('!') and not l.strip().startswith('#')]
         data = [l.split() for l in lines if len(l.split()) >= 3]
         
+        if not data:
+            return None
+            
         df = pd.DataFrame(data).iloc[:, 0:3].astype(float)
         df.columns = ['freq', 'val1', 'val2']
         
@@ -79,7 +82,6 @@ def generate_dummy_chamber_data(freq_target, is_previous=False):
 def main():
     st.title("📡 안테나 성능 분석 시스템")
     
-    # 탭(Tab) 구조 유지 (주임님이 만족하신 구조)
     tab_home, tab_viewer, tab_debug, tab_report = st.tabs([
         "🏠 1. 설정 및 업로드", "📊 2. 데이터 뷰어", "🔍 3. 심층 분석", "📄 4. 리포트"
     ])
@@ -99,7 +101,6 @@ def main():
         t_gain = c5.number_input("Target Gain (dBi)", value=2.0, step=0.5)
 
         st.markdown("---")
-        # [복원됨] 튜닝 기록 텍스트 구역
         st.markdown("### 📝 Tuning History (버전 관리)")
         st.text_area("이번 버전(V1.0) 튜닝 시 변경된 물리적 치수나 매칭 소자값을 기록하세요.", 
                      value="[예시]\n- 방사체 길이 1.5mm 연장\n- 매칭 회로: C소자 1.2pF 적용", height=100)
@@ -111,20 +112,18 @@ def main():
         
         with col_curr:
             st.success("🟢 현재 튜닝 데이터 (V1.0)")
-            # [핵심 수정] type 제한을 모두 제거했습니다. 핸드폰에서 파일이 다 보입니다!
             s1p_curr = st.file_uploader("1. S1P (매칭 데이터) [필수]", key="c_s1p")
             cham_summ_curr = st.file_uploader("2. 챔버 Summary 엑셀", key="c_sum")
             cham_raw_curr = st.file_uploader("3. 챔버 3D/2D Raw 엑셀", key="c_raw")
             
         with col_prev:
             st.warning("🔵 이전 데이터 (비교 시에만 업로드)")
-            # [핵심 수정] type 제한 제거
             s1p_prev = st.file_uploader("1. 이전 S1P 데이터", key="p_s1p")
             cham_summ_prev = st.file_uploader("2. 이전 챔버 Summary", key="p_sum")
             cham_raw_prev = st.file_uploader("3. 이전 챔버 Raw 엑셀", key="p_raw")
 
     # ------------------------------------------------
-    # 탭 2: Data Viewer (현재 데이터 확인)
+    # 탭 2: Data Viewer
     # ------------------------------------------------
     with tab_viewer:
         st.markdown("### 📊 계측 데이터 정밀 뷰어")
@@ -136,17 +135,21 @@ def main():
             
             with v_tab1:
                 df_c = parse_s1p(s1p_curr)
-                col1, col2 = st.columns(2)
-                with col1:
-                    fig1 = go.Figure()
-                    fig1.add_trace(go.Scatter(x=df_c['freq'], y=df_c['s11_db'], name='S11', line=dict(color='#2980b9')))
-                    fig1.add_hline(y=t_s11, line_dash="dash", line_color="red")
-                    fig1.update_layout(title="S11 Return Loss")
-                    st.plotly_chart(fig1, use_container_width=True)
-                with col2:
-                    fig3 = go.Figure(go.Scattersmith(imag=df_c['imag'], real=df_c['real'], name="Impedance"))
-                    fig3.update_layout(title="Smith Chart")
-                    st.plotly_chart(fig3, use_container_width=True)
+                # 🚨 에러 방어막: 데이터가 제대로 파싱되었을 때만 그래프를 그립니다.
+                if df_c is not None and not df_c.empty:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        fig1 = go.Figure()
+                        fig1.add_trace(go.Scatter(x=df_c['freq'], y=df_c['s11_db'], name='S11', line=dict(color='#2980b9')))
+                        fig1.add_hline(y=t_s11, line_dash="dash", line_color="red")
+                        fig1.update_layout(title="S11 Return Loss")
+                        st.plotly_chart(fig1, use_container_width=True)
+                    with col2:
+                        fig3 = go.Figure(go.Scattersmith(imag=df_c['imag'], real=df_c['real'], name="Impedance"))
+                        fig3.update_layout(title="Smith Chart")
+                        st.plotly_chart(fig3, use_container_width=True)
+                else:
+                    st.error("🚨 S1P 파일을 정상적으로 읽을 수 없습니다. 파일 내용이나 포맷을 확인해주세요.")
                     
             with v_tab2:
                 if cham_summ_curr and cham_raw_curr:
@@ -176,7 +179,7 @@ def main():
                     st.warning("챔버 엑셀 파일 2개를 모두 올려야 방사 패턴이 활성화됩니다.")
 
     # ------------------------------------------------
-    # 탭 3: Deep Debugging (심층 진단)
+    # 탭 3: Deep Debugging
     # ------------------------------------------------
     with tab_debug:
         st.markdown("### 🔍 전문가 심층 진단")
@@ -189,6 +192,7 @@ def main():
             
             df_c = parse_s1p(s1p_curr)
             df_p = parse_s1p(s1p_prev) if is_comp else None
+            
             c_res_freq, c_res_s11 = find_resonance(df_c)
             p_res_freq, p_res_s11 = find_resonance(df_p) if is_comp else (None, None)
             
@@ -201,19 +205,27 @@ def main():
             with d_tab1:
                 col1, col2 = st.columns([1, 2])
                 with col1:
-                    if is_comp:
-                        st.metric("공진 주파수", f"{c_res_freq} MHz", f"{c_res_freq - p_res_freq} MHz (Shift)")
+                    # 🚨 에러 방어막: 데이터가 정상적으로 추출되었을 때만 수학 연산을 수행합니다.
+                    if c_res_freq is not None and c_res_s11 is not None:
+                        if is_comp and p_res_freq is not None:
+                            shift = c_res_freq - p_res_freq
+                            st.metric("공진 주파수", f"{c_res_freq} MHz", f"{shift} MHz (Shift)")
+                        else:
+                            st.metric("공진 주파수", f"{c_res_freq} MHz")
+                        
+                        m_loss = (1 - 10**(c_res_s11/10)) * 100
+                        st.metric("매칭 손실", f"{m_loss:.2f} %")
                     else:
-                        st.metric("공진 주파수", f"{c_res_freq} MHz")
-                    m_loss = (1 - 10**(c_res_s11/10)) * 100
-                    st.metric("매칭 손실", f"{m_loss:.2f} %")
+                        st.error("🚨 S1P 데이터를 분석할 수 없습니다. 빈 파일이거나 양식이 잘못되었습니다.")
+                        
                 with col2:
-                    fig = go.Figure()
-                    if is_comp:
-                        fig.add_trace(go.Scatter(x=df_p['freq'], y=df_p['s11_db'], name='Prev', line=dict(color='gray', dash='dot')))
-                    fig.add_trace(go.Scatter(x=df_c['freq'], y=df_c['s11_db'], name='Curr', line=dict(color='#2980b9', width=3)))
-                    fig.add_hline(y=t_s11, line_dash="dash", line_color="red")
-                    st.plotly_chart(fig, use_container_width=True)
+                    if df_c is not None and not df_c.empty:
+                        fig = go.Figure()
+                        if is_comp and df_p is not None:
+                            fig.add_trace(go.Scatter(x=df_p['freq'], y=df_p['s11_db'], name='Prev', line=dict(color='gray', dash='dot')))
+                        fig.add_trace(go.Scatter(x=df_c['freq'], y=df_c['s11_db'], name='Curr', line=dict(color='#2980b9', width=3)))
+                        fig.add_hline(y=t_s11, line_dash="dash", line_color="red")
+                        st.plotly_chart(fig, use_container_width=True)
                     
             with d_tab2:
                 col1, col2 = st.columns(2)
@@ -253,13 +265,17 @@ def main():
                     
             with d_tab4:
                 st.subheader("💡 Expert System 자동 진단 결과")
-                if is_comp:
-                    shift = c_res_freq - p_res_freq
-                    if abs(shift) < 5: st.success("✅ 매칭 공진점이 안정적입니다.")
-                    else: st.warning(f"⚠️ 공진 주파수가 {abs(shift)}MHz 이동했습니다. 소자값이나 기구 조립 상태를 확인하세요.")
+                # 🚨 에러 방어막 연동
+                if c_res_freq is None or c_res_s11 is None:
+                    st.warning("데이터가 온전하지 않아 진단을 수행할 수 없습니다.")
                 else:
-                    if c_res_s11 <= t_s11: st.success("✅ 매칭 Target 만족!")
-                    else: st.error("🚨 매칭 불량: 소자 재조정이 필요합니다.")
+                    if is_comp and p_res_freq is not None:
+                        shift = c_res_freq - p_res_freq
+                        if abs(shift) < 5: st.success("✅ 매칭 공진점이 안정적입니다.")
+                        else: st.warning(f"⚠️ 공진 주파수가 {abs(shift)}MHz 이동했습니다. 소자값이나 기구 조립 상태를 확인하세요.")
+                    else:
+                        if c_res_s11 <= t_s11: st.success("✅ 매칭 Target 만족!")
+                        else: st.error("🚨 매칭 불량: 소자 재조정이 필요합니다.")
 
     # ------------------------------------------------
     # 탭 4: Master Report
